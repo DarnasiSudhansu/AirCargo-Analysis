@@ -1,0 +1,173 @@
+
+Q1 - Write a query to create a route_details table using suitable data types for the fields, such as route_id, flight_num, origin_airport, destination_airport, aircraft_id, and distance_miles; implement the check constraint for the flight number and unique constraint for the route_id fields; also, make sure that the distance miles field is greater than 0.
+CREATE TABLE route_details (
+    route_id INT PRIMARY KEY AUTO_INCREMENT,
+    flight_num VARCHAR(10) NOT NULL,
+    origin_airport VARCHAR(50) NOT NULL,
+    destination_airport VARCHAR(50) NOT NULL,
+    aircraft_id INT NOT NULL,
+    distance_miles DECIMAL(10, 2) NOT NULL,
+    CONSTRAINT chk_distance CHECK (distance_miles > 0),
+    CONSTRAINT uc_flight_num UNIQUE (flight_num),
+    CONSTRAINT uc_route_id UNIQUE (route_id)
+);
+
+Q2 - Write a query to display all the passengers (customers) who have traveled on routes 01 to 25; refer to the data from the passengers_on_flights table
+select first_name,last_name from customer where customer_id in (select distinct(customer_id) from passengers_on_flights where route_id between 1 and 25);
+
+Q3 - Write a query to identify the number of passengers and total revenue in business class from the ticket_details table.
+select distinct(count(customer_id)),sum(price_per_ticket) from ticket_details where class_id="Bussiness";
+
+Q4 - Write a query to display the full name of the customer by extracting the first name and last name from the customer table.
+select concat(first_name," ",last_name) as FullNAme from customer;
+
+Q5 - Write a query to extract the customers who have registered and booked a ticket. Use data from the customer and ticket_details tables.
+select * from customer where customer_id in (select customer_id from ticket_details); 
+
+Q6 - Write a query to identify the customer’s first name and last name based on their customer ID and brand (Emirates) from the ticket_details table.
+select concat(first_name," ",last_name) as FullNAme from customer where customer_id in (select customer_id from ticket_details where brand ="Emirates");
+
+Q7 - Write a query to identify the customers who have traveled by Economy Plus class using Group By and Having clause on the passengers_on_flights table.
+select customer_id from passengers_on_flights where class_id in (select class_id from passengers_on_flights group by class_id having class_id="Economy Plus");
+
+Q8 - Write a query to identify whether the revenue has crossed 10000 using the IF clause on the ticket_details table
+SELECT if(sum(price_per_ticket) > 10000, 'Yes', 'No') AS has_crossed_10000_revenue from ticket_details;
+
+Q9 - Write a query to create and grant access to a new user to perform operations on a database.
+create user 'new_user'@'localhost' identified by 'user123';
+grant all privileges on assignment_3.* to 'new_user'@'localhost';
+
+Q10 - Write a query to find the maximum ticket price for each class using window functions on the ticket_details table.
+select class_id,max(price_per_ticket) over(partition by class_id) as max_ticket_price  from ticket_details;
+
+Q11 - Write a query to extract the passengers whose route ID is 4 by improving the speed and performance of the passengers_on_flights table.
+CREATE INDEX idx_passenger_route ON passengers_on_flights (route_id, customer_id);
+select first_name,last_name from customer where customer_id in(SELECT DISTINCT customer_id from passengers_on_flights where route_id = 4);
+
+Q12 - For route ID 4, write a query to view the execution plan of the passengers_on_flights table.
+EXPLAIN SELECT DISTINCT customer_id from passengers_on_flights where route_id = 4;
+
+Q13 - Write a query to calculate the total price of all tickets booked by a customer across different aircraft IDs using the rollup function.
+select customer_id,aircraft_id,sum(price_per_ticket) as total_price from ticket_details
+group by customer_id, aircraft_id with rollup;
+
+Q14 - Write a query to create a view with only business class customers along with the brand of airlines.
+create view business_class_customers as select customer_id,class_id,brand as airline_brand from ticket_details  
+where class_id="Bussiness"; 
+
+Q15 - Write a query to create a stored procedure to get the details of all passengers flying between a range of routes defined in run time. Also, return an error message if the table doesn't exist.
+DELIMITER //
+
+CREATE PROCEDURE GetPassengerDetailsInRange(IN route_start INT, IN route_end INT)
+BEGIN
+    DECLARE table_exists INT;
+
+    -- Check if the table exists
+    SELECT COUNT(*) INTO table_exists
+    FROM information_schema.tables
+    WHERE table_name = 'passengers_on_flights';
+
+    -- If the table doesn't exist, return an error message
+    IF table_exists = 0 THEN
+        SELECT 'Error: Table passengers_on_flights does not exist.';
+    ELSE
+        -- If the table exists, retrieve passenger details for the specified range of routes
+        SELECT pof.passenger_id, pof.flight_id, pof.route_id
+        FROM passengers_on_flights pof
+        WHERE pof.route_id BETWEEN route_start AND route_end;
+    END IF;
+END;
+//
+
+DELIMITER ;
+
+Q16 - Write a query to create a stored procedure that extracts all the details from the routes table where the traveled distance is more than 2000 miles.
+DELIMITER //
+
+CREATE PROCEDURE GetLongDistanceRoutes()
+BEGIN
+    SELECT *
+    FROM routes
+    WHERE distance > 2000;
+END;
+//
+
+DELIMITER ;
+
+Q17 - Write a query to create a stored procedure that groups the distance traveled by each flight into three categories. The categories are, short distance travel (SDT) for >=0 AND <= 2000 miles, intermediate distance travel (IDT) for >2000 AND <=6500, and long-distance travel (LDT) for >6500.
+
+DELIMITER //
+
+CREATE PROCEDURE GroupDistanceCategories()
+BEGIN
+    SELECT
+        flight_id,
+        distance,
+        CASE
+            WHEN distance >= 0 AND distance <= 2000 THEN 'Short distance travel (SDT)'
+            WHEN distance > 2000 AND distance <= 6500 THEN 'Intermediate distance travel (IDT)'
+            WHEN distance > 6500 THEN 'Long-distance travel (LDT)'
+            ELSE 'Unknown category'
+        END AS distance_category
+    FROM flights;
+END;
+//
+
+DELIMITER ;
+
+Q18 - Write a query to extract ticket purchase date, customer ID, and class ID and specify if the complimentary services are provided for the specific class using a stored function in the stored procedure on the ticket_details table. Condition: 
+• If the class is Business and Economy Plus, then complimentary services are given as Yes, else it is No
+DELIMITER //
+
+CREATE FUNCTION GetComplimentaryServices(class_name VARCHAR(50)) RETURNS VARCHAR(3)
+BEGIN
+    DECLARE complimentary VARCHAR(3);
+
+    IF class_name IN ('Business', 'Economy Plus') THEN
+        SET complimentary = 'Yes';
+    ELSE
+        SET complimentary = 'No';
+    END IF;
+
+    RETURN complimentary;
+END;
+//
+
+DELIMITER ;
+
+Q19 - Write a query to extract the first record of the customer whose last name ends with Scott using a cursor from the customer table.
+DELIMITER //
+
+CREATE PROCEDURE ExtractCustomerWithLastNameScott()
+BEGIN
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE customer_id INT;
+    DECLARE first_name VARCHAR(255);
+    DECLARE last_name VARCHAR(255);
+
+    -- Declare a cursor to select customers whose last name ends with 'Scott'
+    DECLARE cur CURSOR FOR
+        SELECT customer_id, first_name, last_name
+        FROM customer
+        WHERE last_name LIKE '%Scott';
+
+    -- Declare handlers for cursor operations
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    -- Open the cursor
+    OPEN cur;
+
+    -- Fetch the first record
+    FETCH cur INTO customer_id, first_name, last_name;
+
+    -- If a record is found, display the details
+    IF NOT done THEN
+        SELECT customer_id, first_name, last_name;
+    END IF;
+
+    -- Close the cursor
+    CLOSE cur;
+END;
+//
+
+DELIMITER ;
